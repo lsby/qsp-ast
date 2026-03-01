@@ -1,0 +1,894 @@
+﻿# mod_beggar_setup
+!input basic mod information here. 
+!this location must be the first one
+
+$mod_info[0] = 'beggar'
+!0=mod name, saved to $mod_name[i] array 
+
+$mod_info[1] = '10000'
+!1=mod version
+!this will be displayed as version 1.2, fix3.
+!if you input 40500, will be showen as version 4.5
+
+$mod_info[2] = 'Darcanlos'
+!2=mod author
+
+$mod_info[3] = 'beggar'
+!3=mod description, input a short brief here.
+
+$mod_info[4] = 'Options'
+!4=mod options/settings link name.
+
+if curloc = 'mod_<<$mod_info[0]>>_setup':
+	usehtml = 1
+	!this will be only showed if you exec mod file. This location should be only called by gs, so this line will not trigger on normal mod playing
+	'<center><h1><font color=red>ACCESS DENIED</font></h1></center>'
+	'<<$mod_info[0]>> is a mod for <b>Girl Life - English Community Version</b>, and can not be played individually.'
+	''
+	'You can find the main game in <a href="https://www.tfgamessite.com/index.php?module=viewgame&id=597">Tfgames site</a> (external link)'
+	''
+	'Our forum: <a href="https://tfgamessite.com/phpbb3/viewforum.php?f=70">Tfgames site</a> (external link)'
+end
+-- mod_beggar_setup ---------------------------------
+
+# mod_beggar_options
+*clr & cla
+!!usehtml = 1
+'<center><h2>Beggar Settings</h2></center>'
+!'Options.'
+'<center><table cellspacing="0" cellpadding="20" valign="top">'
+	'<tr>'
+		*nl
+		if beggar['moneysetting'] = 1:
+			$beggar['moneysettingtxt'] = 'ON'
+			'Money barrier  (Currently <<$beggar[''moneysettingtxt'']>>)    <a href="exec:beggar[''moneysetting''] = 0 & gt ''mod_beggar_options''">Turn "OFF"</a>'
+		else
+			$beggar['moneysettingtxt'] = 'OFF'
+			'Money barrier  (Currently <<$beggar[''moneysettingtxt'']>>)    <a href="exec:beggar[''moneysetting''] = 1 & gt ''mod_beggar_options''">Turn "ON"</a>'
+		end
+		
+		*nl
+		if beggar['messagesetting'] = 1:
+			$beggar['messagesettingtxt'] = 'ON'
+			'Addiction Messages  (Currently <<$beggar[''messagesettingtxt'']>>)    <a href="exec:beggar[''messagesetting''] = 0 & gt ''mod_beggar_options''">Turn "OFF"</a>'
+		else
+			$beggar['messagesettingtxt'] = 'OFF'
+			'Addiction Messages  (Currently <<$beggar[''messagesettingtxt'']>>)    <a href="exec:beggar[''messagesetting''] = 1 & gt ''mod_beggar_options''">Turn "ON"</a>'
+		end
+	'</td></tr>'
+'</table></center>'
+
+act 'Return': gt 'mod_setting'
+
+-- mod_beggar_options ---------------------------------
+
+# mod_beggar_readme
+!input your mod detail readme here. you can use msg or detailed structure, just make sure to create act 'return': gt 'mod_setting'
+*clr & cla
+act 'Return': gt 'mod_setting'
+
+'<center>Mod <b><font color=red> beggar </font></b></center>'
+'This mod adds the possibility to beg in the city center, industrial and residential areas while low on money. You can disable the money barrier under the option''s page of the mod.'
+
+-- mod_beggar_readme ---------------------------------
+
+# mod_beggar
+if beggar['initonce'] ! 1:
+	beggar['moneysetting'] = 1
+	beggar['messagesetting'] = 1
+	beggar['initonce'] = 1
+end
+
+if beggar['moneysetting'] = 1:
+	if ($loc = 'city_center' or $loc = 'city_industrial' or $loc = 'city_residential') and $curloc = $loc and $menu_arg = '' and menu_off = 0 and $location_type = 'public_outdoors' and money <= 100 and hour > 6 and hour < 23: act 'Beg for money': gt 'mod_beggar_events', 'start'
+else
+	if ($loc = 'city_center' or $loc = 'city_industrial' or $loc = 'city_residential') and $curloc = $loc and $menu_arg = '' and menu_off = 0 and $location_type = 'public_outdoors' and hour > 6 and hour < 23: act 'Beg for money': gt 'mod_beggar_events', 'start'
+end
+
+if $loc = 'city_lake_path' and $loc ! 'mod_beggar_events' and beggar['dendiscovered'] = 1:
+	act 'Descend to the Den': gt 'mod_beggar_events', 'drugden2'
+end
+
+!Increases addiction by one each hour
+if beggar['glue_count'] >= 6 and beggar['glue_need_hour'] ! hour:
+	beggar['glue_need'] += 1
+	beggar['glue_need_hour'] = hour
+end
+
+!Decreases addiction by 1 each day (actually decreases times consumed as no statistics are implemented). As soon as glue_count falls below 6, addiction will stop increasing, giving a chance to break free
+if beggar['glue_count'] >= 1 and beggar['glue_need_daystart'] ! daystart:
+	beggar['glue_count'] -= 1
+	beggar['glue_need_daystart'] = daystart
+end
+
+!Handles consequences and messages. Every 40 hours after last sniff event consequences will start to appear. Might need to reduce the message spam? (there''s an option now to disable them)
+if beggar['glue_need'] > 40:
+	pl '<td><a href="exec:msg ''You really need to sniff glue again, you really miss it.''"><img title="You really need to sniff glue again, you really miss it. Having gone so long without is taking a hit on your mood!" height = <<set_siconht>> src="images/system/icon/status_icons/craving_drugs.png"></a></td>'
+	if beggar['glue_need_hour2'] ! hour:
+		if beggar['messagesetting'] = 1: *nl & 'You can''t stop thinking the awesome feeling you got from sniffing glue. Having gone so long without is taking a hit on your mood!'
+		if pcs_mood > 20: pcs_mood -= 5
+		beggar['glue_need_hour2'] = hour
+		gs 'stat'
+	end
+end
+-- mod_beggar ---------------------------------
+
+# mod_beggar_events
+menu_off = 1
+$location_type = 'public_outdoors'
+
+if $ARGS[0] = 'start':
+	*clr & cla
+	minut += 5
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	if $loc = 'city_center': '<center><b>City Center</b></center>'
+	if $loc = 'city_industrial': '<center><b>Industrial Region</b></center>'
+	if $loc = 'city_residential': '<center><b>Residential Area</b></center>'
+	if $loc = 'city_park': '<center><b>Park</b></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/begging2.jpg"></center>'
+	*nl & 'You feel desperate for some money and decide to resort to begging. For sure there will be some charitable souls around that could help you out...'
+	*nl & 'You find a spot on the sidewalk to sit down and put the best sorrow face you can manage.'
+	act 'Start begging': gt 'mod_beggar_events', 'begmoney'		
+	act 'Better not...': gt $loc, $loc_arg
+end
+
+if $ARGS[0] = 'begmoney':
+	*clr & cla
+	'<center><h2>St. Petersburg</h2></center>'
+	if $loc = 'city_center': '<center><b>City Center</b></center>'
+	if $loc = 'city_industrial': '<center><b>Industrial Region</b></center>'
+	if $loc = 'city_residential': '<center><b>Residential Area</b></center>'
+	
+	if hour < 20 or hour >= 23:
+		temp = rand(1,30)
+	else
+		temp = rand(1,20)
+	end
+	if temp = 1: gt 'mod_beggar_events', 'event_coffee'
+	if temp = 2: gt 'mod_beggar_events', 'event_coffee'
+	if temp = 3: gt 'mod_beggar_events', 'event_competition'
+	if temp = 4: gt 'mod_beggar_events', 'event_mendrink'
+	if temp = 5: gt 'mod_beggar_events', 'event_creep'
+	if temp = 6: gt 'mod_beggar_events', 'event_streetgirl'
+	if temp = 7: gt 'mod_beggar_events', 'event_police'
+	if temp = 8: gt 'mod_beggar_events', 'event_prostitutionoffer'
+	if temp = 9: gt 'mod_beggar_events', 'event_mercihelp'
+	if temp = 10:
+		minut += 2
+		'<center><img <<$set_imgh>> src="mod/beggar/begging2.jpg"></center>'
+		*nl & 'A homeless man approaches you and asks you if you want to share his food. It looks like he has taken pitty on you...'
+		act 'Accept': gt 'mod_beggar_events', 'event_sharefood'
+		act 'Deny': gt 'mod_beggar_events', 'start'
+	end
+	if temp >= 11:
+		minut += 45
+		if hour < 9: beggar['money'] = rand(1,30)
+		if hour >= 9 and hour < 20: beggar['money'] = rand(1,50)
+		if hour >= 20: beggar['money'] = rand(1,20)
+		if cumloc[11] = 1: beggar['money'] = rand(1,10)
+		'<center><img <<$set_imgh>> src="mod/beggar/received.jpg"></center>'
+		if cumloc[11] = 1: 'People are barely giving you anything and most of them look at you in disgust. Could it be because the sperm on your face?'
+		if beggar['money'] < 15:
+			*nl & 'You manage to round up <<beggar[''money'']>> rubles. This wasn''t a lot...'
+		elseif beggar['money'] > 40:
+			*nl & 'You manage to round up <<beggar[''money'']>> rubles. This was quite decent!'
+		elseif beggar['money'] >= 15 and beggar['money'] <= 40:
+			*nl & 'You manage to round up <<beggar[''money'']>> rubles.'
+		end
+		money += beggar['money']
+		gs 'stat'
+		act 'Continue begging': gt 'mod_beggar_events', 'begmoney'	
+		act 'Stop begging': gt $loc, $loc_arg
+	end
+end
+
+if $ARGS[0] = 'drugden2':
+	$location_type = 'public_indoors'
+	$loc = 'mod_beggar_events'
+	*clr & cla
+	minut += 3
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+	*nl & 'You are in what the local youngsters call the Den. It''s an old service tunnel below the tracks that street boys and other ragtags use as a place to disconnect.'
+	*nl & 'There''s always someone here and it''s always surprisingly quiet. All people here are immersed in their thougths while often sniffing glue. It really seems like a place to forget all sorrows just as Galina said. When someone talks, it''s mostly in a low voice as to not to disturb.'
+	*nl & 'Viktor seems to live down here or at least he spends huge amounts of time down below the tracks. If you need a fix, he''s the one to go.'
+	if beggar['glue_owned'] >= 1:
+		*nl & 'You have enough glue left for <<beggar[''glue_owned'']>> uses.'
+	else
+		*nl & 'You have no glue left. If you want more you''ll have to purchase some from Viktor.'
+	end
+	if beggar['glue_owned'] < 1: *nl 'You have no glue. If you want some you will have to purchase it from Viktor.'
+	if money >= 50:
+		act 'Buy glue from Viktor (50 rubles)': money -= 50 & beggar['glue_owned'] += 3 & gt 'mod_beggar_events', 'drugden2'
+	else
+		act 'Buy glue from Viktor (<font color="red">50 rubles</font>)': '<br><font color="red">You don''t have enough money to to purchase this.</font>'
+	end
+	if beggar['glue_owned'] >= 1:
+		act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+	end
+	act 'Leave': minut -= 25 & gs 'stat' & gt 'city_lake_path'
+end
+
+! SMALL EVENTS
+if $ARGS[0] = 'event_mercihelp':
+	if hour >= 19 or hour < 9: gt 'mod_beggar_events', 'begmoney'
+	*clr & cla
+	minut += 1
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/helppoor.jpg"></center>'
+	*nl & 'You see how a van from the Merci Clinic arrives further down the road and sets up to offer food to the needed. A line soon forms by the vehicle.'
+	*nl & 'It would be a great opportunity to still any hunger...'
+	act 'Get in line':
+		*clr & cla
+		minut += 1
+		gs 'stat'
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/clinichelp1.jpg"></center>'
+		*nl & 'You get in line and it soon arrives your turn. You get some food and water from the nice girl in the van and then find a standing spot by the table they have set up by the vehicle.'
+		*nl & 'You feel strange eating here with all these homeless men. Are you really this deperate?'
+		frost = 0
+		minut += 20
+		pcs_health += 10
+		fat += 4
+		pcs_energy += 40
+		if pcs_hydra >= 100:
+			pcs_hydra += 20
+		else
+			pcs_hydra += 40
+		end
+		pcs_breath = 0
+		gs 'food', 'aftermeal'
+		*nl & 'You eat your meal. The portion is fairly small and stale, but it still does you good.'
+		act 'Continue':
+			temp = rand(1,10)
+			if temp = 1:
+				*clr & cla
+				minut += 1
+				pcs_mood -= 5
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/assgrab<<rand(1,2)>>.jpg"></center>'
+				*nl & 'You''re eating standing between the men as you suddenly feel your arse being grabbed by one of the men nearby. You jump in reflex and almost drop all your food.'
+				*nl & 'You look at him in disgust, but he only grins mischievously'
+				act 'Leave': gt $loc, $loc_arg
+			elseif temp = 2:
+				*clr & cla
+				minut += 1
+				pcs_mood -= 5
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/titgrab.jpg"></center>'
+				*nl & 'You''re eating standing between the men as you suddenly feel your breasts being grabbed by one of the men from behind. You jump in reflex and almost drop all your food.'
+				if $braworntype = 'none': *nl 'As you''re not wearing a bra, he can feel your breasts in all it''s glory.'
+				*nl & 'You look at him in disgust, but he only grins mischievously'
+				act 'Leave': gt $loc, $loc_arg
+			elseif temp = 3:
+				*clr & cla
+				minut += 1
+				pcs_mood -= 5
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/pussygrab.jpg"></center>'
+				*nl & 'You''re eating standing between the men as suddenly one of them just grabs down into your pussy! You jump in reflex and almost drop all your food.'
+				if $pantyworntype = 'none': *nl & 'You''re not wearing any panties, so to his pleasant surprise he gains direct access to your pussy and enjoys it''s softness in full for at least the long seconds it takes you to shake him away.'
+				*nl & 'You look at him in disgust, but he only grins mischievously'
+				act 'Leave': gt $loc, $loc_arg
+			elseif temp = 4:
+				*clr & cla
+				minut += 1
+				pcs_mood -= 5
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/oldhomeless.jpg"></center>'
+				*nl & 'A very old homeless man approaches you and offers you a drink from his bottle of Vodka.'
+				act 'Accept':
+					*clr & cla
+					minut += 5
+					'<center><h2>St. Petersburg</h2></center>'
+					'<center><img <<$set_imgh>> src="mod/beggar/drinkden.jpg"></center>'
+					*nl & 'You accept the drink and take a good long drink.'
+					*nl & 'He babbles non-stop from now on, although you can barely understand anything he''s saying. You finally thank him and leave.'
+					gs 'drugs', 'alcohol', 'vodka'
+					gs 'stat'
+					act 'Continue': gt $loc, $loc_arg
+				end
+				act 'Refuse': gt $loc, $loc_arg
+			elseif temp = 5:
+				*clr & cla
+				minut += 1
+				pcs_mood -= 5
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/olga.jpg"></center>'
+				*nl & 'The girl from the van approaches you.   "Hello! Aren''t you a bit too young to be living off the street? If you need any help, please come by the Merci Clinic, afterall we''re here to help girls just like you. The streets are dangerous and no place for such a young beautiful girl!"'
+				*nl & 'She looks really nice and helpful. Maybe you should consider her offer if you''re ever in need...'
+				act 'Leave': gt $loc, $loc_arg
+			elseif temp >= 6:
+				gt $loc, $loc_arg
+			end
+		end
+	end
+	act 'Ignore': gt 'mod_beggar_events', 'start'
+end
+
+if $ARGS[0] = 'event_prostitutionoffer':
+	if hour < 20 or hour >= 23: gt 'mod_beggar_events', 'begmoney'
+	*clr & cla
+	minut += 1
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/stranger.jpg"></center>'
+	*nl & 'You''re sitting on the sidewalk when a man approaches you.'
+	*nl & '"Hey girl, I can offer you more than what you can make here in several days if you do me a favor. You''d just have to come with me into that alley."'
+	*nl & 'What? He wants you to go with him into a dark empty alley? That sounds too dangerous. But on the other hand the money could be good...'
+	act 'Go with him':
+		*clr & cla
+		minut += 1
+		gs 'stat'
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/againstwall.jpg"></center>'
+		*nl & 'What the hell, what could happen? At least you could hear him out. You stand up and follow him into the alley.'
+		*nl & 'Once there he circles you against a wall and comes really close to you. You look away in discomfort while he keeps you encircled by holding both his hands around you and against the wall.'
+		*nl & 'Look girl, I need to discharge, and you''ll do just fine. I''ll pay you 200 rubles for a blowjob or 400 if you let me fuck you. It''s enough so you won''t have to keep sitting there on the sidewalk.'
+		*nl & 'He''s asking you to prostitute yourself! Should you???'
+		act 'Accept blowjob':
+			*clr & cla
+			minut += 1
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/alleybj.jpg"></center>'
+			*nl & 'You could very well use the money so you nod in acceptance. He grins wide and pushes you without losing time onto your knees. He zips down his flyer and lets his hard cock pop out right in front of your face.'
+			*nl & 'You don''t have any time to reconsider as you see his hard member dangling just in front of you, as he forcces himself right into your mouth.'
+			*nl & 'You begin to blow him and he just enjoys your mouth sucking his penis until he finally starts to groan. You manage to pull out just in time and he starts to unload all his sperm over your face.'
+			gs 'arousal', 'bj', 3, 'unknown', 'prostitution'
+			gs 'cum_call', 'face', 'alley stranger'
+			gs 'arousal', 'end'
+			temp = rand(1,10)
+			if temp <= 3:
+				*nl & 'He looks down on you before opening his wallet and throwing to the floor the 200 rubles he promised. He then exits the alley leaving you there to pick up the money off the street and with his cum all over your face.'
+				money += 200
+				gs 'stat'
+				act 'Leave the alley': gt $loc, $loc_arg
+			elseif temp > 3 and temp <= 7:
+				*nl & 'He looks down on you before opening his wallet and throwing some money to the floor. He then exits the alley leaving you there to pick up the money off the street and with his cum all over your face.'
+				temp = rand(10, 90)
+				money += temp
+				gs 'stat'
+				*nl & 'You start to count it and it''s a lot less than he promised, what an asshole! You look after him, but he''s long gone...'
+				*nl & 'You count it and he left you only <<temp>> rubles.'
+				act 'Leave the alley': gt $loc, $loc_arg
+			else
+				*nl & 'He looks down on you and then just walks away! You start screaming after him but he just keeps on going until he leaves the alley. You stand there dumbfounded and with his cum all over your face.'
+				gs 'stat'
+				act 'Leave the alley': gt $loc, $loc_arg
+			end
+		end
+		act 'Accept vaginal':
+			*clr & cla
+			minut += 1
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/alleyvg.jpg"></center>'
+			*nl & 'You could very well use the money so you nod in acceptance. He grins wide drops your pants and turns you around without losing time. You hear him zip his pants open.   "Please use a condom!"  you say as you''re already with your back towards him.'
+			*nl & '"Ok, don''t worry"  he replies... You don''t have any time to reconsider as you feel his hard member penetrating you fully in a single thrust.'
+			if stat['vaginal'] ! 0: *nl & 'He obliterates your hymen and robs you of your virginity forever. You just lost your virginity to a stranger in a dirty alley!'
+			*nl & 'He begins to fuck you hard and fast until he finally starts to groan. He holds you tight against him and unloads all his sperm inside your vagina. Good that he''s using a condom!'
+			gs 'arousal', 'vaginal', 3, 'unknown', 'prostitution'
+			gs 'cum_call', '', 'alley stranger'
+			gs 'arousal', 'end'
+			temp = rand(1,10)
+			if temp <= 3:
+				*nl & 'He looks down on you before opening his wallet and throwing to the floor the 400 rubles he promised. He then exits the alley leaving you there to pick up the money off the street and with his cum dripping out of your vagina. The asshole didn''t use a condom after all!'
+				money += 400
+				gs 'stat'
+				act 'Leave the alley': gt $loc, $loc_arg
+			elseif temp > 3 and temp <= 7:
+				*nl & 'He looks down on you before opening his wallet and throwing some money to the floor. He then exits the alley leaving you there to pick up the money off the street and with his cum dripping out of your vagina. The asshole didn''t use a condom after all!'
+				temp = rand(10, 150)
+				money += temp
+				gs 'stat'
+				*nl & 'You start to count it and it''s a lot less than he promised, what an asshole! You look after him, but he''s long gone...'
+				*nl & 'You count it and he left you only <<temp>> rubles.'
+				act 'Leave the alley': gt $loc, $loc_arg
+			else
+				*nl & 'He looks down on you and then just walks away! You start screaming after him but he just keeps on going until he leaves the alley. You stand there dumbfounded and with his dripping out of your vagina. The asshole didn''t use a condom after all!'
+				gs 'stat'
+				act 'Leave the alley': gt $loc, $loc_arg
+			end
+
+		end
+		act 'Refuse':
+			*clr & cla
+			minut += 1
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/fuckoff<<rand(1,4)>>.jpg"></center>'
+			*nl & 'You slip under his arms and flip him off as you walk away.'
+			*nl & 'You hear him scream all kinds of dirty names after you until you''re out of the alley.'
+			act 'Leave the alley': gt $loc, $loc_arg
+		end
+	end
+	act 'Refuse':
+		*clr & cla
+		minut += 1
+		gs 'stat'
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/fuckoff<<rand(1,4)>>.jpg"></center>'
+		*nl & 'You''re not going to go with some stranger into a dark alley, no way. You flip him the finger without saying anything.'
+		*nl & '"Well suit yourself, bitch..."   he says to you and then leaves...'
+		act 'Continue': gt 'mod_beggar_events', 'start'
+	end
+end
+
+if $ARGS[0] = 'event_police':
+	if hour < 20 or hour >= 23: gt 'mod_beggar_events', 'begmoney'
+	*clr & cla
+	minut += 3
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/policestop.jpg"></center>'
+	*nl & 'You''re sitting on the sidewalk when a police car stops in front of you. Two police officers get out of the car and approach you.'
+	*nl & '"We need to see your ID please."   you hand them your ID.'
+	if beggar['policestop_count'] <= 30: beggar['policestop_count'] += 1
+	if rand(1,100) > (50 + beggar['policestop_count']):
+		*nl & '"Look, it''s not allowed to beg here. We''re gonna let you got his time, but don''t repeat, as the fine is 300 rubles!"'
+		*nl & 'With that said they get back into the car and drive away.'
+		act 'Continue': gt $loc, $loc_arg
+	else
+		*nl & '"Look, it''s not allowed to beg here. You''re going to have to pay the fine which is 300 rubles."'
+		act 'Continue':
+			*clr & cla
+			minut += 3
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/policestop.jpg"></center>'
+			if money >= 300:
+				*nl & 'They just take the money from you without even asking and then leave straight away. Assholes, you''re sure they aren''t going to report this and just keep it for themselves...'
+				money -= 300
+				gs 'stat'
+				act 'Continue': gt $loc, $loc_arg
+			elseif money < 300 and money >= 30:
+				*nl & '"You don''t have enough, we''ll just have to take all you got."   they say while they inspect your wallet...'
+				*nl & 'They just take all the money from you without even asking and then leave straight away. Assholes, you''re sure they aren''t going to report this and just keep it for themselves...'
+				money = 0
+				gs 'stat'
+				act 'Continue': gt $loc, $loc_arg
+			elseif money < 30:
+				*nl & '"She barely has anything, not worth it..."   they say while they inspect your wallet...'
+				*nl & '"You got lucky that we are in a good mood today, because we should actually take you to the station to report you and inspect you for drugs, and you wouldn''t enjoy that..."'
+				*nl & 'After saying this they get back into the car and leave you there standing on the sidewalk...'
+				act 'Continue': gt $loc, $loc_arg
+			end
+		end
+	end
+end
+
+if $ARGS[0] = 'event_streetgirl':
+	*clr & cla
+	minut += 5
+	gs 'stat'
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/streetgirl.jpg"></center>'
+	if beggar['dendiscovered'] = 1:
+		*nl & 'Galina sees you and sits down by your side. People start to walk a circle around you both again, so you can forget any money now...'
+		*nl & 'She starts to talk again about how everything sucks. She must have a hard life...'
+		*nl & '"Wanna come with me to the Den? I could sure use some forgetting..."'
+		act 'Go with her':
+			*clr & cla
+			minut += 35
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="images/locations/city/shared/trainstation/prigor1.jpg"></center>'
+			*nl & 'You both stand up and start walking. Soon she climbs on top of the abandoned rail tracks and you both start walking over them for a good while. She speaks less now, but what she does she keeps on complaining about how shitty life is.'
+			*nl & 'Somewhere midway between the lake and the industrial area''s train station you both climb down from the tracks and enter the broken service entrance below leading you into the Den.'
+			act 'Follow her': gt 'mod_beggar_events', 'drugden2'
+		end
+		act 'Refuse':
+			*clr & cla
+			minut += 5
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/galina.jpg"></center>'
+			*nl & 'She stands up and looks down at you.'
+			*nl & '"Well, I''m going, suit yourself. You sure are gonna miss something good though."'
+			*nl & 'She then walks away leaving you sitting on the sidewalk...'
+			act 'Continue': gt 'mod_beggar_events', 'start'
+		end
+	else
+		*nl & 'A girl sits down quite close to you. She looks ragged and drunk and doesn''t seem to care at all what others think of her state.'
+		*nl & 'But now that she''s so close to you, people start to make a wide turn around you both. You won''t make anything with her here!'
+		*nl & 'You are considering moving somewhere else when she suddenly asks you while holding a Vodka bottle towards you...   "Want a drink?"'
+		gs 'willpower', 'drink', 'resist'
+		if will_cost <= pcs_willpwr:
+			act 'Refuse and leave (<<will_cost>> Willpower)': gs 'willpower', 'pay', 'resist' & gt $loc, $loc_arg
+		else
+			act 'Refuse and leave (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+		end
+		act 'Accept':
+			*clr & cla
+			minut += 5
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/streetgirl.jpg"></center>'
+			*nl & 'Why not, afterall you can take this as a pause and a drink is going to do you good. You take the bottle and take a long sip. It''s really strong, but you gulp it down valiantly.'
+			*nl & 'She smiles at you while you drink, and once you''re done she starts to talk. It''s more complaining than talking though, she speaks with a broken voice and complains on how life sucks and what huge assholes men are.'
+			*nl & '"Hey, I know a place that''s great to forget all sorrows. Wanna come?"'
+			gs 'drugs', 'alcohol', 'vodka'
+			gs 'stat'
+			gs 'willpower', 'misc', 'self', 'medium'
+			if will_cost <= pcs_willpwr:
+				act 'Don''t go (<<will_cost>> Willpower)':
+					gs 'willpower', 'pay', 'resist'
+					*clr & cla
+					minut += 1
+					gs 'stat'
+					'<center><h2>St. Petersburg</h2></center>'
+					'<center><img <<$set_imgh>> src="mod/beggar/streetgirl.jpg"></center>'
+					*nl & 'You answer her that you''d better pass, but she insists more...'
+					*nl & '"C''mon, don''t be a sissy... You wouldn''t be here begging on the street if you didn''t have any bad memories to kill. Come with me, you won''t regret it!"'
+					gs 'willpower', 'misc', 'self', 'medium'
+					if will_cost <= pcs_willpwr:
+						act 'Refuse again (<<will_cost>> Willpower)':
+							gs 'willpower', 'pay', 'resist'
+							*clr & cla
+							minut += 1
+							gs 'stat'
+							'<center><h2>St. Petersburg</h2></center>'
+							'<center><img <<$set_imgh>> src="mod/beggar/streetgirl.jpg"></center>'
+							*nl & 'You refuse again and stand up. She looks at you in dismay as you walk away, but as nice as she was being, you can''t shake the feeling that she was a bad omen.'
+							act 'Leave': gt $loc, $loc_arg
+						end
+					else
+						act 'Refuse again (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+					end
+					act 'Go with her':
+						*clr & cla
+						minut += 35
+						'<center><h2>St. Petersburg</h2></center>'
+						'<center><img <<$set_imgh>> src="images/locations/city/shared/trainstation/prigor1.jpg"></center>'
+						*nl & 'You both stand up and start walking. Soon she climbs on top of some abandoned rail tracks and starts walking over them for a good while. She speaks less now, but what she does she keeps on complaining about how shitty life is.'
+						*nl & 'Somewhere midway between the lake and the industrial area''s train station she climbs down from the tracks and goes inside a broken service entrance below the tracks. This doesn''t look safe, but you''ve come so far...'
+						act 'Follow her': gt 'mod_beggar_events', 'drugden'
+					end
+				end
+			else
+				act 'Don''t go (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+			end
+			act 'Go with her':
+				*clr & cla
+				minut += 35
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="images/locations/city/shared/trainstation/prigor1.jpg"></center>'
+				*nl & 'You both stand up and start walking. Soon she climbs on top of some abandoned rail tracks and starts walking over them for a good while. She speaks less now, but what she does she keeps on complaining about how shitty life is.'
+				*nl & 'Somewhere midway between the lake and the industrial area''s train station she climbs down from the tracks and goes inside a broken service entrance below the tracks. This doesn''t look safe, but you''ve come so far...'
+				act 'Follow her': gt 'mod_beggar_events', 'drugden'
+			end
+		end
+	end
+end
+
+if $ARGS[0] = 'drugden':
+	$location_type = 'public_indoors'
+	*clr & cla
+	minut += 3
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+	*nl & 'You end in a small room covered in graffities and wall writings and illuminated by a gas light sitting on the floor. Inside there''s a group of youngsters which don''t even turn their heads as you both enter. They all seem to be sniffing something inside some bags.'
+	*nl & 'You don''t feel well in here, it doesn''t look safe and there''s a strange feeling in the air...'
+	*nl & 'The girl sits by a boy and she starts talking to him...   "Viktor, do you have some for me and my friend?"'
+	*nl & '"Hey Galina, for you always. I got the best and strongest."   he hands her a small bag and she then moves over back to you. At least you know her name now.'
+	*nl & '"Try this, you''re gonna have the trip of your life!"   she says as she sits down by your side and hands you the bag over.'
+	beggar['dendiscovered'] = 1
+	gs 'willpower', 'drugs', 'resist'
+	if will_cost <= pcs_willpwr:
+		act 'Refuse (<<will_cost>> Willpower)':
+			gs 'willpower', 'pay', 'resist'
+			*clr & cla
+			minut += 1
+			gs 'stat'
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+			*nl & 'You answer her that you''d better pass, but she insists more...'
+			*nl & '"Really, you won''t regret it. Just try it and if you really don''t like it don''t continue, but it does no harm and you''ll feel great!"'
+			gs 'willpower', 'drugs', 'resist'
+			if will_cost <= pcs_willpwr:
+				act 'Refuse again (<<will_cost>> Willpower)':
+					gs 'willpower', 'pay', 'resist'
+					*clr & cla
+					minut += 1
+					gs 'stat'
+					'<center><h2>St. Petersburg</h2></center>'
+					'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+					*nl & 'You refuse again and tell her you want to leave. She looks disappointed, but doesn''t stop you.   "Well, maybe next time..."   she says before you leave...'
+					*nl & 'You leave the place and head back outside. Once outside you climb back onto the tracks.'
+					act 'Continue': minut -= 25 & gs 'stat' & gt 'city_lake_path'
+				end
+			else
+				act 'Refuse again (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+			end
+			act 'Accept':
+				*clr & cla
+				minut += 3
+				beggar['dendiscovered'] = 1
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/sniffglue.jpg"></center>'
+				*nl & 'You take the bag and sniff from it. It''s a strong smell, but it soon starts to take effect and you begin to feel as if you were floating. It''s awesome!'
+				*nl & '"Hey! Leave me something!"   Galina says laughing... She sniffs herself a couple of times and then hands you the bag back.'
+				beggar['glue_owned'] += 3
+				if NarkImmune = 0: 
+					beggar['glue_count'] += 1
+					if beggar['glue_count'] > 1 and glue_exp = 0: glue_exp = 1
+				end
+				pcs_mood = 100
+				pcs_health -= 10
+				gs 'stat'
+				gs 'willpower', 'drugs', 'resist'
+				if will_cost <= pcs_willpwr:
+					act 'Stop (<<will_cost>> Willpower)':
+						gs 'willpower', 'pay', 'resist'
+						*clr & cla
+						minut += 1
+						gs 'stat'
+						'<center><h2>St. Petersburg</h2></center>'
+						'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+						*nl & 'You tell Galina that you''ve had enough, thank her, and leave the den.'
+						*nl & 'You head back outside. Once outside you climb back onto the tracks.'
+						act 'Continue': minut -= 25 & gs 'stat' & gt 'city_lake_path'
+					end
+				else
+					act 'Stop (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+				end
+				act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+			end
+		end
+	else
+		act 'Refuse (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+	end
+	act 'Accept':
+		*clr & cla
+		minut += 3
+		beggar['dendiscovered'] = 1
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/sniffglue.jpg"></center>'
+		*nl & 'You take the bag and sniff from it. It''s a strong smell, but it soon starts to take effect and you begin to feel as if you were floating. It''s awesome!'
+		*nl & '"Hey! Leave me something!"   Galina says laughing... She sniffs herself a couple of times and then hands you the bag back.'
+		beggar['glue_owned'] += 3
+		if NarkImmune = 0: 
+			beggar['glue_count'] += 1
+			if beggar['glue_count'] > 1 and glue_exp = 0: glue_exp = 1
+		end
+		beggar['glue_need'] = 0
+		pcs_mood = 100
+		pcs_health -= 10
+		gs 'stat'
+		gs 'willpower', 'drugs', 'resist'
+		if will_cost <= pcs_willpwr:
+			act 'Stop (<<will_cost>> Willpower)':
+				gs 'willpower', 'pay', 'resist'
+				*clr & cla
+				minut += 1
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+				*nl & 'You tell Galina that you''ve had enough, thank her, and leave the den.'
+				*nl & 'You head back outside. Once outside you climb back onto the tracks.'
+				act 'Continue':gt 'city_lake_path'
+			end
+		else
+			act 'Stop (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+		end
+		act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+	end
+end
+
+if $ARGS[0] = 'bagsniff':
+	$location_type = 'public_indoors'
+	*clr & cla
+	beggar['glue_owned'] -= 1
+	if alko >= 6: gt 'mod_beggar_events', 'passout'
+	minut += 5
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/sniffglue.jpg"></center>'
+	*nl & 'You sniff from the bag. The gasses from the glue go deep into your brain and you suddenly feel great.'
+	if NarkImmune = 0: 
+		beggar['glue_count'] += 1
+		if beggar['glue_count'] >= 1 and glue_exp = 0: glue_exp = 1
+	end
+	beggar['glue_need'] = 0
+	pcs_mood = 100
+	pcs_health -= 10
+	gs 'stat'
+	if rand(1,100) < 50:
+		*nl & 'Someone hands you over a bottle of Vodka.'
+		gs 'willpower', 'drink', 'resist'
+		if will_cost <= pcs_willpwr:
+			act 'Refuse (<<will_cost>> Willpower)':
+				*clr & cla
+				minut += 5
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/sayno.jpg"></center>'
+				*nl & 'You refuse the bottle but thank the offering person.'
+				gs 'willpower', 'drugs', 'resist'
+				if will_cost <= pcs_willpwr:
+					act 'Stop sniffing (<<will_cost>> Willpower)':
+						gs 'willpower', 'pay', 'resist'
+						*clr & cla
+						minut += 1
+						gs 'stat'
+						'<center><h2>St. Petersburg</h2></center>'
+						'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+						*nl & 'You decide that it''s enough.'
+						act 'Continue': gt 'mod_beggar_events', 'drugden2'
+					end
+				else
+					act 'Stop sniffing (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+				end
+				if beggar['glue_owned'] >= 1:
+					act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+				else
+					act 'Continue': gt 'mod_beggar_events', 'drugden2'
+				end
+			end
+		else
+			act 'Refuse (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+		end
+		act 'Drink':
+			*clr & cla
+			minut += 35
+			'<center><h2>St. Petersburg</h2></center>'
+			'<center><img <<$set_imgh>> src="mod/beggar/drinkden.jpg"></center>'
+			*nl & 'You take a good lonk drink and hand the bottle back.'
+			gs 'drugs', 'alcohol', 'vodka'
+			gs 'stat'
+			gs 'willpower', 'drugs', 'resist'
+			if will_cost <= pcs_willpwr:
+				act 'Stop sniffing (<<will_cost>> Willpower)':
+					gs 'willpower', 'pay', 'resist'
+					*clr & cla
+					minut += 1
+					gs 'stat'
+					'<center><h2>St. Petersburg</h2></center>'
+					'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+					*nl & 'You decide that it''s enough.'
+					act 'Continue': gt 'mod_beggar_events', 'drugden2'
+				end
+			else
+				act 'Stop sniffing (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+			end
+			if beggar['glue_owned'] >= 1:
+				act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+			else
+				act 'Continue': gt 'mod_beggar_events', 'drugden2'
+			end
+		end
+	else
+		gs 'willpower', 'drugs', 'resist'
+		if will_cost <= pcs_willpwr:
+			act 'Stop sniffing (<<will_cost>> Willpower)':
+				gs 'willpower', 'pay', 'resist'
+				*clr & cla
+				minut += 1
+				gs 'stat'
+				'<center><h2>St. Petersburg</h2></center>'
+				'<center><img <<$set_imgh>> src="mod/beggar/drugden.jpg"></center>'
+				*nl & 'You decide that it''s enough.'
+				act 'Continue': gt 'mod_beggar_events', 'drugden2'
+			end
+		else
+			act 'Stop sniffing (<font color="red"><<will_cost>> Willpower</font>)': '<br><font color="red">You don''t have enough willpower to use this action.</font>'
+		end
+		if beggar['glue_owned'] >= 1:
+			act 'Sniff from the bag': gt 'mod_beggar_events', 'bagsniff'
+		else
+			act 'Continue': gt 'mod_beggar_events', 'drugden2'
+		end
+	end
+end
+
+if $ARGS[0] = 'passout':
+	$location_type = 'public_indoors'
+	*clr & cla
+	minut += rand(30,120)
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/passedout.jpg"></center>'
+	*nl & 'As you begin sniffing this round, you suddenly feel the floor starting to move. Then all goes dark...'
+	*nl & 'You wake up a good while later. You''re lying on the floor.   "You mixed up quite a bit there girl."   says a boy nearby...'
+	*nl & 'My stuff! Hopefully nobody has stolen anything!'
+	act 'Check your stuff':
+		*clr & cla
+		minut += 2
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/headspinning.jpg"></center>'
+		*nl & 'You check all your stuff but all is there. Your clothes seem to be in order as well, it looks like you were left alone.'
+		*nl & 'Someone helps you into a sitting position.    "Oh boy my head..."'
+		act 'Continue': gt 'mod_beggar_events', 'drugden2'
+	end
+end
+
+if $ARGS[0] = 'event_creep':
+	*clr & cla
+	minut += 5
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/creeplook.jpg"></center>'
+	*nl & 'Suddenly you notice a boy begging across the street. You don''t know how long he has been sitting there, but he''s looking straight to you with a look in his face that scares you.'
+	*nl & 'Maybe you should look for another spot? He''s creeping you out...'
+	act 'Continue begging': gt 'mod_beggar_events', 'begmoney'	
+	act 'Stop begging': gt $loc, $loc_arg
+end
+
+if $ARGS[0] = 'event_mendrink':
+	*clr & cla
+	minut += 5
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/mendrinking.jpg"></center>'
+	*nl & 'Two older men standing nearby and drinking approach you and offer you a drink.'
+	*nl & '"Don''t worry there''s no catch, just something to help keep you warm."   says one of them as he sees your hesitation...'
+	act 'Accept':
+		*clr & cla
+		minut += 5
+		'<center><h2>St. Petersburg</h2></center>'
+		'<center><img <<$set_imgh>> src="mod/beggar/drinkden.jpg"></center>'
+		*nl & 'You accept the drink. They hand you a Vodka bottle and you take a good long drink.'
+		*nl & '"There''s nothing like Vodka if you''re on the street, and we have to help each other. Good luck girl and watch out."   they say before leaving...'
+		gs 'drugs', 'alcohol', 'vodka'
+		gs 'stat'
+		act 'Continue': gt 'mod_beggar_events', 'start'
+	end
+	act 'Deny': gt 'mod_beggar_events', 'start'
+end
+
+if $ARGS[0] = 'event_sharefood':
+	*clr & cla
+	minut += 20
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/sharefood.jpg"></center>'
+	*nl & 'You both sit on a bench and enjoy the food he brought sharing the same fork. He chats with you all the time about all kinds of adventures he has lived on the streets.'
+	*nl & 'It was very enjoyable, but you finally thank him and you both part ways.'
+	pcs_health += 10
+	pcs_mood += 20
+	fat += 6
+	pcs_energy += 20
+	gs 'stat'
+	act 'Leave': gt $loc, $loc_arg
+end
+
+
+if $ARGS[0] = 'event_competition':
+	*clr & cla
+	minut += 60
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/competition.jpg"></center>'
+	beggar['money'] = rand(1,15)
+	*nl & 'You see another man begging nearby. You wonder if his competition might be hurting your income...'
+	*nl & 'You manage to round up <<beggar[''money'']>> rubles. This wasn''t a lot...'
+	money += beggar['money']
+	act 'Continue begging': gt 'mod_beggar_events', 'begmoney'	
+	act 'Stop begging': gt $loc, $loc_arg
+end
+
+if $ARGS[0] = 'event_coffee':
+	*clr & cla
+	minut += 5
+	'<center><h2>St. Petersburg</h2></center>'
+	'<center><img <<$set_imgh>> src="mod/beggar/coffee.jpg"></center>'
+	*nl & 'A man approaches you and offers you coffee. You accept gladly and thank him. Drinking the coffee does you good.'
+	frost = 0
+	if alko > 0: alko -= 1
+	pcs_health += 5
+	pcs_mood += 20
+	pcs_energy += 15
+	if pcs_hydra >= 100:
+		pcs_hydra += 20
+	else
+		pcs_hydra += 40
+	end
+	gs 'beverage', 'afterdrink'
+	gs 'stat'
+	act 'Continue begging': gt 'mod_beggar_events', 'start'	
+	act 'Stop begging': gt $loc, $loc_arg
+end
+
+
+-- mod_beggar_events ---------------------------------
+

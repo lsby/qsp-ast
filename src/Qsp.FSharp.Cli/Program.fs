@@ -3,17 +3,20 @@ open Argu
 
 open Qsp.FSharp.Cli.Search
 open Qsp.FSharp.Cli.Lint
+open Qsp.FSharp.Cli.Parse
 
 [<RequireQualifiedAccess>]
 type CliArguments =
     | [<CliPrefix(CliPrefix.None)>] Search of ParseResults<SearchCliArguments>
     | [<CliPrefix(CliPrefix.None)>] Lint of ParseResults<LintCliArguments>
+    | [<CliPrefix(CliPrefix.None)>] Parse of ParseResults<ParseCliArguments>
 
     interface IArgParserTemplate with
         member s.Usage =
             match s with
             | Search _ -> "searching code in QSP games by pattern"
             | Lint _ -> "linting code in QSP games"
+            | Parse _ -> "parse QSP source and output AST as JSON"
 
 [<EntryPoint>]
 let main argv =
@@ -43,5 +46,10 @@ let main argv =
 
             | CliArguments.Lint results ->
                 LintCliArguments.exec results
+
+                0
+
+            | CliArguments.Parse results ->
+                ParseCliArguments.exec results
 
                 0
