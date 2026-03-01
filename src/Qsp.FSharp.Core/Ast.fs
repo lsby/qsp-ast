@@ -166,6 +166,8 @@ type Var = VarType * VarName
 module Var =
     let getName ((_, name): Var) = name
 
+type PosVar = NoEqualityPosition * Var
+
 type StmtsOrRaw =
     | Raw of string
     | StaticStmts of PosStatement list
@@ -175,8 +177,9 @@ and LineKind =
     | ExprKind of Expr
     /// `&lt;a href="exec: ...">some text&lt;/a>`
     | HyperLinkKind of StmtsOrRaw * Line list
+and PosLineKind = NoEqualityPosition * LineKind
 /// Без переносов
-and Line = LineKind list
+and Line = PosLineKind list
 
 and Value =
     | Int of int
@@ -186,7 +189,7 @@ and Expr =
     | Val of Value
     | Var of var:Var
     | Func of Defines.PredefFunc PredefUndef * Expr list
-    | Arr of var:Var * Expr list
+    | Arr of var:PosVar * Expr list
     | UnarExpr of UnarOp * Expr
     | Expr of Op * Expr * Expr
     | Tuple of Expr list
@@ -195,7 +198,7 @@ and AssignWhat =
     | AssignVar of var:Var
     /// Arguments of the array may be missing.
     /// In this case, the value is added to the end of the array.
-    | AssignArr of var: Var * args: Expr list
+    | AssignArr of var: PosVar * args: Expr list
 and PosStatement = NoEqualityPosition * Statement
 and Statement =
     | Assign of isLocal:bool * AssignWhat list * Expr
@@ -231,7 +234,7 @@ type Document = DocumentElement list
 module AssignWhat =
     let getVar = function
         | AssignWhat.AssignVar(var)
-        | AssignWhat.AssignArr(var, _) ->
+        | AssignWhat.AssignArr((_, var), _) ->
             var
 
     let getName = getVar >> Var.getName

@@ -98,11 +98,11 @@ module Parser =
                     applyRange notFollowedByBinOpIdent |>> fun x -> NumericType, x
 
                 tuple2
-                    (pstringIdent <|> pnumericVar .>> ws)
+                    (getPosition .>>. (pstringIdent <|> pnumericVar .>> ws))
                     ((pBracesArgs
                     |>> fun args ->
                         let tokenType = TokenType.Function
-                        fun (funType, name) range ->
+                        fun pos (funType, name) range ->
                             let p =
                                 appendSemanticError range SemanticErrorType.UndefinedFunction
                             p
@@ -113,20 +113,20 @@ module Parser =
                     //   <|> (pterm |>> fun arg -> TokenType.Function, fun (typ', name) -> Func(name, [arg]))
                     <|> (pbraket
                         |>> fun args ->
-                                fun (varType, nameVar) range ->
+                                fun pos (varType, nameVar) range ->
                                     let desc = getDesc(varType, nameVar)
                                     appendHover2 (RawDescription desc) range
                                     >>. appendToken2 TokenType.Variable range
                                     >>. appendVarHighlight range (varType, nameVar) VarHighlightKind.ReadAccess false
-                                    >>% Arr((varType, nameVar), args))
-                    <|>% fun (varType, nameVar) range ->
+                                    >>% Arr((NoEqualityPosition(Position.create (pos: FParsec.Position).StreamName pos.Index pos.Line pos.Column), (varType, nameVar)), args))
+                    <|>% fun pos (varType, nameVar) range ->
                             let desc = getDesc(varType, nameVar)
                             appendHover2 (RawDescription desc) range
                             >>. appendToken2 TokenType.Variable range
                             >>. appendVarHighlight range (varType, nameVar) VarHighlightKind.ReadAccess false
                             >>% Var(varType, nameVar))
-                >>= fun ((varType, (range, name)), f) ->
-                        f (varType, name) range
+                >>= fun ((pos, (varType, (range, name))), f) ->
+                        f pos (varType, name) range
             // #load @"Defines.fs"
             // open Qsp
             let nullary, multiary =
@@ -201,7 +201,7 @@ module Parser =
                                 }
                             )
                         | Some _ -> preturn ()
-                >>% Func(Predef Defines.Func, Val (String [[StringKind locName]])::args)
+                >>% Func(Predef Defines.Func, Val (String [[NoEqualityPosition Position.empty, StringKind locName]])::args)
 
         let ptuple =
             pBracesArgs

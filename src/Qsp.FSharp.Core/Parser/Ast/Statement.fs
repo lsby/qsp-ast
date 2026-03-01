@@ -89,13 +89,13 @@ module Parser =
                     (appendToken Tokens.TokenType.BraceSquareClosed (pchar ']'))
                     (sepBy pexpr (pchar ',' >>. ws))
 
-            pVarName .>>? ws .>>.? opt pArray
-            |>> fun (var, optArray) ->
+            getPosition .>>. pVarName .>>? ws .>>.? opt pArray
+            |>> fun ((pos, var), optArray) ->
                 match optArray with
                 | None ->
                     AssignWhat.AssignVar var
                 | Some arrayArgs ->
-                    AssignWhat.AssignArr(var, arrayArgs)
+                    AssignWhat.AssignArr((NoEqualityPosition(Position.create (pos: FParsec.Position).StreamName pos.Index pos.Line pos.Column), var), arrayArgs)
 
         let assign isLocal =
             sepBy1
@@ -200,7 +200,7 @@ module Parser =
                 let pLoc =
                     if Set.contains procNameLower Defines.transferOperatorsSet then
                         match args with
-                        | (r, Val (String [[StringKind locName]]))::_ ->
+                        | (r, Val (String [[_, StringKind locName]]))::_ ->
                             getUserState
                             >>= fun (x:State) ->
                             let nested =

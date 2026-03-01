@@ -19,17 +19,17 @@ module Printer =
         |> List.map (
             List.collect (
                 function
-                | StringKind x ->
+                | _, StringKind x ->
                     showString (x.Replace("'", "''"))
                     |> List.singleton
-                | ExprKind x ->
+                | _, ExprKind x ->
                     showExpr x
                     |> show
                     |> fun x -> x.Replace("'", "''") // TODO: стоит ли говорить, что все эти былины с `.Replace("'", "''")` нужно превратить в нормальный код?
                     |> showString
                     |> bet "<<" ">>"
                     |> List.singleton
-                | HyperLinkKind(x, body) ->
+                | _, HyperLinkKind(x, body) ->
                     let attValue =
                         match x with
                         | Raw x ->

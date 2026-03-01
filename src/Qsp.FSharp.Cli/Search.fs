@@ -101,7 +101,7 @@ let patternMatching pattern =
         | ExprKind _
         | StringKind _ -> acc
     and lineEqual acc (xs:Qsp.Ast.Line) =
-        List.fold lineKindEqual acc xs
+        List.fold (fun acc (_, kind) -> lineKindEqual acc kind) acc xs
     and valueEqual acc x =
         match x with
         | String lines ->

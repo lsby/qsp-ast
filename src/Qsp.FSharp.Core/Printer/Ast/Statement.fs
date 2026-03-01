@@ -10,7 +10,7 @@ module Printer =
     open Qsp.Ast
 
     let showAssignmentLhs showStmtsInline = function
-        | AssignWhat.AssignArr(var, args) ->
+        | AssignWhat.AssignArr((_, var), args) ->
             Value.Printer.showVar var
             << Expr.Printer.showArrayArgs (List.map (Expr.Printer.showExpr showStmtsInline) args)
         | AssignWhat.AssignVar var -> Value.Printer.showVar var
@@ -32,7 +32,7 @@ module Printer =
             | For _ | Loop _ -> None
         | _ -> None
 
-    let (|AssingName|) = function AssignArr(x, _) -> x | AssignVar x -> x
+    let (|AssingName|) = function AssignArr((_, x), _) -> x | AssignVar x -> x
 
     let spaceBetween (s:ShowS) : ShowS =
         showSpace << s << showSpace
@@ -71,7 +71,7 @@ module Printer =
                                 str
                                 |> List.map (
                                     List.map (function
-                                        | StringKind x -> StringKind (x.Trim())
+                                        | pos, StringKind x -> pos, StringKind (x.Trim())
                                         | x -> x)
                                 )
                             else

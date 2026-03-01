@@ -75,7 +75,7 @@ module Printer =
                 << f e2
             | Tuple args ->
                 showTupleArgs (List.map f args)
-            | Arr(var, args) ->
+            | Arr((_, var), args) ->
                 Value.Printer.showVar var << showArrayArgs (List.map f args)
         f expr
 
@@ -101,5 +101,5 @@ module Printer =
             f e1 << showSpace << ops op << showSpace << f e2
         | Tuple args ->
             showTupleArgs (List.map (showExpr showStmtsInline) args)
-        | Arr(var, args) ->
+        | Arr((_, var), args) ->
             Value.Printer.showVar var << showArrayArgs (List.map (showExpr showStmtsInline) args)

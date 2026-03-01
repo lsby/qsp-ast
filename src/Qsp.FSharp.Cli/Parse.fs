@@ -64,6 +64,12 @@ module AstToJson =
         | Undef s ->
             jsonObj [ "type", jsonStr "Undef"; "value", jsonStr s ]
 
+    let posToJson (pos: NoEqualityPosition) =
+        jsonObj [
+            "line", string pos.Pos.Line
+            "column", string pos.Pos.Column
+        ]
+
     let rec stmtsOrRawToJson (x: StmtsOrRaw) =
         match x with
         | Raw s ->
@@ -71,21 +77,27 @@ module AstToJson =
         | StaticStmts stmts ->
             jsonObj [ "type", jsonStr "StaticStmts"; "body", posStatementsToJson stmts ]
 
-    and lineKindToJson (x: LineKind) =
-        match x with
+    and posLineKindToJson ((pos, kind): PosLineKind) =
+        let posObj =
+            jsonObj [
+                "line", string pos.Pos.Line
+                "column", string pos.Pos.Column
+            ]
+        match kind with
         | StringKind s ->
-            jsonObj [ "type", jsonStr "StringKind"; "value", jsonStr s ]
+            jsonObj [ "pos", posObj; "type", jsonStr "StringKind"; "value", jsonStr s ]
         | ExprKind expr ->
-            jsonObj [ "type", jsonStr "ExprKind"; "expr", exprToJson expr ]
+            jsonObj [ "pos", posObj; "type", jsonStr "ExprKind"; "expr", exprToJson expr ]
         | HyperLinkKind(stmtsOrRaw, lines) ->
             jsonObj [
+                "pos", posObj
                 "type", jsonStr "HyperLinkKind"
                 "stmts", stmtsOrRawToJson stmtsOrRaw
                 "lines", jsonArr (lines |> List.map lineToJson)
             ]
 
     and lineToJson (line: Line) =
-        jsonArr (line |> List.map lineKindToJson)
+        jsonArr (line |> List.map posLineKindToJson)
 
     and valueToJson (v: Value) =
         match v with
@@ -106,8 +118,9 @@ module AstToJson =
                 "name", predefUndefToJson predefUndef
                 "args", jsonArr (args |> List.map exprToJson)
             ]
-        | Arr(var, indices) ->
+        | Arr((pos, var), indices) ->
             jsonObj [
+                "pos", posToJson pos
                 "type", jsonStr "Arr"
                 "var", varToJson var
                 "indices", jsonArr (indices |> List.map exprToJson)
@@ -132,8 +145,9 @@ module AstToJson =
         match aw with
         | AssignVar(var) ->
             jsonObj [ "type", jsonStr "AssignVar"; "var", varToJson var ]
-        | AssignArr(var, args) ->
+        | AssignArr((pos, var), args) ->
             jsonObj [
+                "pos", posToJson pos
                 "type", jsonStr "AssignArr"
                 "var", varToJson var
                 "indices", jsonArr (args |> List.map exprToJson)
