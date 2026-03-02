@@ -432,6 +432,9 @@ module Parser =
                 (ploop pInlineStmts pstmts)
                 pAssign pstmts
                 pcallProc pstmts
+                appendToken Tokens.TokenType.Procedure (pchar '+')
+                >>. ws
+                >>. (pexpr pstmts |>> fun arg -> Proc("*pl", [arg]))
                 notFollowedBy (pchar '-' >>. ws >>. (skipNewline <|> skipChar '-' <|> eof)) // `-` завершает локацию
                 >>. (pexpr pstmts |>> fun arg -> Proc("*pl", [arg]))
             ]
