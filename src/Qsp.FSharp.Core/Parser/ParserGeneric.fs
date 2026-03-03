@@ -7,7 +7,15 @@ open Qsp
 open Qsp.Tokens
 
 let fparsecPosToPos (pos:FParsec.Position) =
-    Ast.Position.create pos.StreamName pos.Index pos.Line pos.Column
+    Ast.Position.create pos.StreamName pos.Index pos.Line pos.Column 0
+
+let withPos p =
+    pipe3 getPosition p getPosition (fun p1 v p2 ->
+        Ast.Position.create p1.StreamName p1.Index p1.Line p1.Column (int (p2.Index - p1.Index)), v
+    )
+
+let withNoEqPos p =
+    withPos p |>> fun (pos, v) -> Ast.NoEqualityPosition pos, v
 
 let runEither p str =
     match run p str with

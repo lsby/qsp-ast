@@ -53,8 +53,7 @@ module Parser =
                         .>> ws .>> appendToken TokenType.InterpolationEnd (pstring ">>"))
                     <|> attempt pATag // TODO: тут бы предупреждение какое-нибудь не помешало: мол, не осилил
                 plineKindRef.Value <-
-                    getPosition .>>. (innerLineKind <|> (pchar '<' >>% StringKind "<"))
-                    |>> fun (pos, kind) -> NoEqualityPosition(Position.create pos.StreamName pos.Index pos.Line pos.Column), kind
+                    withNoEqPos (innerLineKind <|> (pchar '<' >>% StringKind "<"))
                 plineKind
             pgetNested >>=? fun nestedCount ->
             let pOpened = pstring (charsReplicate (pown 2 nestedCount) openedChar)

@@ -89,13 +89,13 @@ module Parser =
                     (appendToken Tokens.TokenType.BraceSquareClosed (pchar ']'))
                     (sepBy pexpr (pchar ',' >>. ws))
 
-            getPosition .>>. pVarName .>>? ws .>>.? opt pArray
+            withPos pVarName .>>? ws .>>.? opt pArray
             |>> fun ((pos, var), optArray) ->
                 match optArray with
                 | None ->
                     AssignWhat.AssignVar var
                 | Some arrayArgs ->
-                    AssignWhat.AssignArr((NoEqualityPosition(Position.create (pos: FParsec.Position).StreamName pos.Index pos.Line pos.Column), var), arrayArgs)
+                    AssignWhat.AssignArr((NoEqualityPosition(pos), var), arrayArgs)
 
         let assign isLocal =
             sepBy1
@@ -388,7 +388,7 @@ module Parser =
             let p =
                 ws .>>? skipNewline >>. spaces >>. pstmts .>> setIsEndOptionalTo false
                 <|> (spaces >>. pInlineStmts .>> setIsEndOptionalTo true)
-            many1 ((getPosition |>> (fparsecPosToPos >> NoEqualityPosition)) .>>.? pelseifHeader .>>. p)
+            many1 (withNoEqPos pelseifHeader .>>. p)
             .>>. (pElse1 <|> (pend >>% []))
             |>> fun (elifs, elseBody) ->
                 let rec f = function
@@ -439,5 +439,5 @@ module Parser =
                 >>. (pexpr pstmts |>> fun arg -> Proc("*pl", [arg]))
             ]
         let posStmt =
-            (getPosition |>> (fparsecPosToPos >> NoEqualityPosition)) .>>.? p
+            withNoEqPos p
         posStmt

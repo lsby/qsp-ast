@@ -8,6 +8,7 @@ type Position = {
     Index: int64
     Line: int64
     Column: int64
+    Length: int
 }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -19,14 +20,16 @@ module Position =
             Index = 0L
             Line = 0L
             Column = 0L
+            Length = 0
         }
 
-    let create streamName index line column =
+    let create streamName index line column length =
         {
             StreamName = streamName
             Index = index
             Line = line
             Column = column
+            Length = length
         }
 
 type NoEqualityPosition(pos:Position) =

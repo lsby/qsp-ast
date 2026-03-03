@@ -98,7 +98,7 @@ module Parser =
                     applyRange notFollowedByBinOpIdent |>> fun x -> NumericType, x
 
                 tuple2
-                    (getPosition .>>. (pstringIdent <|> pnumericVar .>> ws))
+                    (withPos (pstringIdent <|> pnumericVar .>> ws))
                     ((pBracesArgs
                     |>> fun args ->
                         let tokenType = TokenType.Function
@@ -113,12 +113,12 @@ module Parser =
                     //   <|> (pterm |>> fun arg -> TokenType.Function, fun (typ', name) -> Func(name, [arg]))
                     <|> (pbraket
                         |>> fun args ->
-                                fun pos (varType, nameVar) range ->
+                                fun (pos: Ast.Position) (varType, nameVar) range ->
                                     let desc = getDesc(varType, nameVar)
                                     appendHover2 (RawDescription desc) range
                                     >>. appendToken2 TokenType.Variable range
                                     >>. appendVarHighlight range (varType, nameVar) VarHighlightKind.ReadAccess false
-                                    >>% Arr((NoEqualityPosition(Position.create (pos: FParsec.Position).StreamName pos.Index pos.Line pos.Column), (varType, nameVar)), args))
+                                    >>% Arr((NoEqualityPosition(pos), (varType, nameVar)), args))
                     <|>% fun pos (varType, nameVar) range ->
                             let desc = getDesc(varType, nameVar)
                             appendHover2 (RawDescription desc) range

@@ -68,6 +68,7 @@ module AstToJson =
         jsonObj [
             "line", string pos.Pos.Line
             "column", string pos.Pos.Column
+            "length", string pos.Pos.Length
         ]
 
     let rec stmtsOrRawToJson (x: StmtsOrRaw) =
@@ -82,6 +83,7 @@ module AstToJson =
             jsonObj [
                 "line", string pos.Pos.Line
                 "column", string pos.Pos.Column
+                "length", string pos.Pos.Length
             ]
         match kind with
         | StringKind s ->
@@ -216,6 +218,7 @@ module AstToJson =
             "pos", jsonObj [
                 "line", string pos.Pos.Line
                 "column", string pos.Pos.Column
+                "length", string pos.Pos.Length
             ]
             "stmt", statementToJson stmt
         ]
